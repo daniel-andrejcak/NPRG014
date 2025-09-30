@@ -17,10 +17,27 @@
 
 List<String> processNumbers(List<Operation> userInput, List<Integer> numbers) {
     //Function that runs the provided operations on the provided collection of numbers. Needs to be implemented.
-    // ...
+    def result = numbers
+
+    userInput.each { op ->
+        // pass numbers size as LENGTH for TRANSFORMATION operation
+        def binding = new Binding([LENGTH: numbers.size()])
+        
+        def shell = new GroovyShell(binding)
+
+        //evaluate as closure so return we can use .call(), otherwise it would return "Object" without this method
+        Closure closure = shell.evaluate("(${op.command})") as Closure
+
+        if (op.type == OperationType.FILTER){
+            result = result.findAll { n -> closure.call(n) }
+        }
+        else if (op.type == OperationType.TRANSFORMATION) {
+            result = result.collect { n -> closure.call(n) }
+        }
+    }
+
+    return result
 }
-
-
 
 //************* Do not modify after this point!
 enum OperationType {FILTER, TRANSFORMATION}

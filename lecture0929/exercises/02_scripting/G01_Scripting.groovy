@@ -5,7 +5,7 @@ GroovyShell shell = new GroovyShell(binding)
 
 final code = '''
 debugNote = 'This is a boring calculation!'
-
+shellvar = 42
 println 'Calculating ...'
 a + b + 9
 
@@ -13,3 +13,5 @@ a + b + 9
 
 println 'Result: ' + shell.evaluate(code)
 //TASK Read and print the 'debugNote' bound by the script
+println binding.debugNote
+println binding.shellvar
