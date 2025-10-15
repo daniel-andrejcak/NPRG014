@@ -6,94 +6,87 @@
 // This means that parentheses must be placed where necessary with respect to the mathematical operator priorities.
 // Change or add to the code in the script. Reuse the infrastructure code at the bottom of the script.
 class NumericExpressionBuilder extends BuilderSupport {
-    Item root
+    private Item root
 
     @Override
     protected void setParent(Object parent, Object child) {
-        parent.addChild(child)
+        parent.children << child
     }
 
     @Override
     protected Object createNode(Object name) {
-        new Item(type: name.toString())
-    }
-
-    @Override
-    protected Object createNode(Object name, Object value) {
-        new Item(type: name.toString(), value: value)
+        return new Item(name.toString())
     }
 
     @Override
     protected Object createNode(Object name, Map attributes) {
-        new Item(type: name.toString(), value: attributes['value'])
+        def node = new Item(name.toString())
+        node.value = attributes['value']
+        return node
+    }
+
+    // these override methods are not needed for this implementaiton, but still have to be declared
+    @Override
+    protected Object createNode(Object name, Object value) {
+        throw new UnsupportedOperationException("Not implemented")
     }
 
     @Override
     protected Object createNode(Object name, Map attributes, Object value) {
-        new Item(type: name.toString(), value: value)
+            throw new UnsupportedOperationException("Not implemented")
     }
 
     @Override
     protected void nodeCompleted(Object parent, Object node) {
-        if (parent == null) {
-            root = node
-        }
+        if (parent == null) root = node
     }
 
-    Item rootItem() {
-        root
-    }
+    Item rootItem() { root }
 }
 
 class Item {
-    String type
+    String name
     def value
     List<Item> children = []
 
-    void addChild(Item child) {
-        children << child
-    }
+    Item(String name) { this.name = name }
 
-    private static final Map<String, Integer> PRECEDENCE = [
-        'number': 4, 'variable': 4,
-        'power' : 3, '^'       : 3,
-        '*'     : 2, '/'       : 2,
-        '+'     : 1, '-'       : 1
+    boolean isLeaf() { name in ['number', 'variable'] }
+
+    static Map<String, Integer> PRECEDENCE = [
+        'number': 4, 
+        'variable': 4,
+        'power': 3,
+        '^': 3,
+        '*': 2,
+        '/': 2,
+        '+': 1,
+        '-': 1
     ]
-
-    private boolean isLeaf() {
-        type in ['number', 'variable']
-    }
-
-    private int precedence() {
-        PRECEDENCE[type] ?: 0
-    }
 
     @Override
     String toString() {
-        if (isLeaf()) {
-            return value.toString()
-        }
-        // binary operator
-        if (children.size() == 2) {
-            def left = children[0], right = children[1]
-            String lstr = left.toString()
-            String rstr = right.toString()
+        if (isLeaf()) return value.toString()
 
-            if (left.precedence() < this.precedence()) {
-                lstr = "(${lstr})"
-            }
-            if (right.precedence() < this.precedence() ||
-                (type in ['-', '/'] && right.precedence() == this.precedence()) ||
-                (type in ['power','^'] && right.precedence() == this.precedence())) {
-                rstr = "(${rstr})"
-            }
+        def op = (name == 'power') ? '^' : name
 
-            def op = (type == 'power' ? '^' : type)
-            return "${lstr} ${op} ${rstr}"
-        }
-        // unary / fallback
-        children ? children[0].toString() : value?.toString()
+        def left = children[0]
+        def right = children[1]
+
+        def leftStr = left.toString()
+        def rightStr = right.toString()
+
+        // add parentheses if left operator has lower precedence than parent operator 
+        if (!left.isLeaf() && PRECEDENCE[left.name] < PRECEDENCE[name])
+            leftStr = "(${leftStr})"
+
+        // add parentheses if right operator has lower precedence than parent operaotor or parent operator is right-associative
+        if (!right.isLeaf() &&
+            (PRECEDENCE[right.name] < PRECEDENCE[name] ||
+             (PRECEDENCE[right.name] == PRECEDENCE[name] && name in ['power', '^'])))
+            rightStr = "(${rightStr})"
+
+        return "${leftStr} ${op} ${rightStr}"
     }
 }
 //------------------------- Do not modify beyond this point!
