@@ -8,6 +8,7 @@ import org.codehaus.groovy.ast.ASTNode
 import org.codehaus.groovy.ast.MethodNode
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.Parameter
+import org.codehaus.groovy.ast.AnnotationNode
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.transform.ASTTransformation
 import org.codehaus.groovy.transform.GroovyASTTransformation
@@ -16,6 +17,7 @@ import org.codehaus.groovy.ast.stmt.TryCatchStatement
 import static org.codehaus.groovy.control.CompilePhase.SEMANTIC_ANALYSIS
 import org.codehaus.groovy.ast.builder.AstBuilder
 import org.codehaus.groovy.ast.stmt.BlockStatement
+import org.codehaus.groovy.ast.stmt.Statement
 import org.codehaus.groovy.syntax.SyntaxException
 import org.codehaus.groovy.control.messages.SyntaxErrorMessage
 import groovyjarjarasm.asm.Opcodes
@@ -32,7 +34,6 @@ public @interface CreatedAt {
 
 @GroovyASTTransformation(phase = SEMANTIC_ANALYSIS)
 public class CreatedAtTransformation implements ASTTransformation {
-
     public void visit(ASTNode[] astNodes, SourceUnit source) {
 
         //...
@@ -59,7 +60,117 @@ public class CreatedAtTransformation implements ASTTransformation {
         // ClassNode.addMethod() accepts a BlockStatement
         
         //TODO Implement this method
+        if (!astNodes || astNodes.length < 2) {
+            return
+        }
+
+        if (!(astNodes[0] instanceof AnnotationNode)) {
+            return
+        }
+
+        if (!(astNodes[1] instanceof ClassNode)) {
+            addError("@CreatedAt can only be applied to classes", astNodes[1], source)
+            return
+        }
+
+        AnnotationNode annotationNode = (AnnotationNode) astNodes[0]
+        if (annotationNode.classNode?.name != CreatedAt.class.name) {
+            return
+        }
+
+        ClassNode classNode = (ClassNode) astNodes[1]
+        if (classNode.isInterface()) {
+            addError("@CreatedAt cannot be applied to interfaces", classNode, source)
+            return
+        }
+
+        String fieldName = "__createdAtTimestamp"
+        Expression nameExpr = annotationNode.getMember("name")
+        String accessorName = (nameExpr instanceof ConstantExpression ? nameExpr.value : null) as String
+        accessorName = accessorName?.trim()
+        if (!accessorName) {
+            accessorName = "createdAt"
+        }
+
+        def originalMethods = classNode.methods.findAll { it != null }
+
+        if (!classNode.getField(fieldName)) {
+            Expression initializer = callX(classX(ClassHelper.make(System)), "currentTimeMillis")
+            classNode.addField(fieldName, Opcodes.ACC_PRIVATE, ClassHelper.long_TYPE, initializer)
+        }
+
+        if (!classNode.getMethods(accessorName)) {
+            BlockStatement accessorBody = block(returnS(propX(varX("this"), fieldName)))
+            MethodNode accessorMethod = new MethodNode(
+                accessorName,
+                Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
+                ClassHelper.long_TYPE,
+                Parameter.EMPTY_ARRAY,
+                ClassNode.EMPTY_ARRAY,
+                accessorBody
+            )
+            classNode.addMethod(accessorMethod)
+        }
+
+        if (!classNode.getMethods("clearTimestamp")) {
+            BlockStatement clearBody = block(assignS(propX(varX("this"), fieldName), constX(0L)))
+            MethodNode clearMethod = new MethodNode(
+                "clearTimestamp",
+                Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
+                ClassHelper.VOID_TYPE,
+                Parameter.EMPTY_ARRAY,
+                ClassNode.EMPTY_ARRAY,
+                clearBody
+            )
+            classNode.addMethod(clearMethod)
+        }
+
+        originalMethods.each { MethodNode method ->
+            if (!method) {
+                return
+            }
+            if (method.isConstructor() || method.isAbstract() || method.isSynthetic()) {
+                return
+            }
+            if ((method.modifiers & Opcodes.ACC_STATIC) != 0) {
+                return
+            }
+
+            Statement existingCode = method.code
+            if (!existingCode) {
+                return
+            }
+
+            BlockStatement body
+            if (existingCode instanceof BlockStatement) {
+                body = (BlockStatement) existingCode
+            } else {
+                body = block(existingCode)
+                method.setCode(body)
+            }
+
+            String nowVar = "__createdAtNow"
+            Expression nowCall = callX(classX(ClassHelper.make(System)), "currentTimeMillis")
+            Statement declareNow = declS(varX(nowVar, ClassHelper.long_TYPE), nowCall)
+
+            Expression lastTimestamp = propX(varX("this"), fieldName)
+            Expression diff = minusX(varX(nowVar), lastTimestamp)
+            Expression condition = gtX(diff, constX(1000L))
+            Statement updateTimestamp = assignS(lastTimestamp, varX(nowVar))
+
+            body.statements.add(0, ifS(condition, block(updateTimestamp)))
+            body.statements.add(0, declareNow)
+        }
         
+    }
+
+    //taken from G07_Custom_AST_Complete.groovy
+    public void addError(String msg, ASTNode expr, SourceUnit source) {
+        int line = expr.lineNumber
+        int col = expr.columnNumber
+        SyntaxException se = new SyntaxException(msg + '\n', line, col)
+        SyntaxErrorMessage sem = new SyntaxErrorMessage(se, source)
+        source.errorCollector.addErrorAndContinue(sem)
     }
 }
 
