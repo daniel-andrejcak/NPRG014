@@ -60,33 +60,22 @@ public class CreatedAtTransformation implements ASTTransformation {
         // ClassNode.addMethod() accepts a BlockStatement
         
         //TODO Implement this method
-        if (!astNodes || astNodes.length < 2) {
-            return
-        }
-
-        if (!(astNodes[0] instanceof AnnotationNode)) {
-            return
-        }
-
-        if (!(astNodes[1] instanceof ClassNode)) {
-            addError("@CreatedAt can only be applied to classes", astNodes[1], source)
-            return
-        }
 
         AnnotationNode annotationNode = (AnnotationNode) astNodes[0]
         if (annotationNode.classNode?.name != CreatedAt.class.name) {
             return
         }
 
-        ClassNode classNode = (ClassNode) astNodes[1]
+        ClassNode classNode = (ClassNode) astNodes[1]  
         if (classNode.isInterface()) {
-            addError("@CreatedAt cannot be applied to interfaces", classNode, source)
+            addError("CreatedAt cannot be applied to interfaces", classNode, source)
             return
         }
 
-        String fieldName = "__createdAtTimestamp"
+        String fieldName = "createdAtTimestamp"
         Expression nameExpr = annotationNode.getMember("name")
         String accessorName = (nameExpr instanceof ConstantExpression ? nameExpr.value : null) as String
+        
         accessorName = accessorName?.trim()
         if (!accessorName) {
             accessorName = "createdAt"
@@ -149,7 +138,7 @@ public class CreatedAtTransformation implements ASTTransformation {
                 method.setCode(body)
             }
 
-            String nowVar = "__createdAtNow"
+            String nowVar = "createdAtNow"
             Expression nowCall = callX(classX(ClassHelper.make(System)), "currentTimeMillis")
             Statement declareNow = declS(varX(nowVar, ClassHelper.long_TYPE), nowCall)
 
