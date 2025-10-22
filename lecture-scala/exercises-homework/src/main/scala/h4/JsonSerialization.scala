@@ -8,7 +8,7 @@ class PhoneNo(val prefix: Int, val number: Int)
 class Person(val firstName: String, val lastName: String, val phone: PhoneNo)
 class Address(val person: Person, val street: String, val city: String)
 
-// JSON Serializer trait
+// taken from e33
 trait JsonSerializer[T]:
   def serialize(obj: T): String
 
@@ -16,20 +16,17 @@ trait JsonSerializer[T]:
     def toJson: String = serialize(x)
 
 object JsonSerializer:
-  // Basic serializers
   given stringSerializer: JsonSerializer[String] with
     def serialize(s: String) = s""""$s""""
 
   given intSerializer: JsonSerializer[Int] with
     def serialize(i: Int) = i.toString
 
-  // List serializer
   given listSerializer[T](using JsonSerializer[T]): JsonSerializer[List[T]] with
     def serialize(lst: List[T]) =
       val elements = lst.map(elem => summon[JsonSerializer[T]].toJson(elem))
       s"[ ${elements.mkString(", ")} ]"
 
-  // Map serializer
   given mapSerializer[K, V](using kser: JsonSerializer[K], vser: JsonSerializer[V]): JsonSerializer[Map[K, V]] with
     def serialize(m: Map[K, V]) =
       val entries = m.map { case (k, v) => 
@@ -37,7 +34,7 @@ object JsonSerializer:
       }
       s"{ ${entries.mkString(", ")} }"
 
-// Serializers for custom classes
+// serializers for custom classes
 object PhoneNo:
   given JsonSerializer[PhoneNo] with
     def serialize(p: PhoneNo) =
