@@ -69,10 +69,11 @@ class Thing extends WithExplicitState:
   override def toString: String = s"Thing ${_state.name} with color ${_state.color}"
 
 
-trait History extends WithExplicitState:
+trait History:
     /* Add necessary declarations here. This trait should have no knowledge of classes Person, Thing, PersonState, ThingState.
        It should depend only on the trait WithExplicitState.
     */
+    this: WithExplicitState =>
 
     val hist = ListBuffer.empty[State]
 
