@@ -3,31 +3,27 @@ import scala.language.implicitConversions
 import scala.math.abs
 
 // Add necessary class and object definitions in order to make the statements in the main work.
-case class Complex(real: Double, imaginary: Double):
+case class Complex(real: Int, imaginary: Int):
 	//operator overloading
 	def +(that: Complex): Complex = Complex(real + that.real, imaginary + that.imaginary)
-	def +(scalar: Double): Complex = Complex(real + scalar, imaginary)
+	def +(scalar: Int): Complex = Complex(real + scalar, imaginary)
 	def *(that: Complex): Complex = Complex(real * that.real - imaginary * that.imaginary, real * that.imaginary + imaginary * that.real)
-	def *(scalar: Double): Complex = Complex(real * scalar, imaginary * scalar)
+	def *(scalar: Int): Complex = Complex(real * scalar, imaginary * scalar)
 	def unary_- : Complex = Complex(-real, -imaginary)
 	
 	//string representation
 	override def toString: String =
-		val realStr = formatPart(real)
-		val imaginaryStr = formatPart(abs(imaginary))
+		val realStr = real.toLong.toString
+		val imaginaryStr = abs(imaginary).toLong.toString //abs to avoid double minus in output
 		
 		if imaginary == 0 then realStr
 		else if real == 0 then s"${if imaginary < 0 then "-" else ""}$imaginaryStr" + "i"
 		else s"$realStr${if imaginary < 0 then "-" else "+"}$imaginaryStr" + "i"
 
-	private def formatPart(value: Double): String =
-		if value == value.toDouble then value.toLong.toString else value.toString
+//implicit conversion from Int to Complex
+given Conversion[Int, Complex] = (value: Int) => Complex(value, 0)
 
-//implicit conversion to Complex
-extension (value: Int)
-  def +(c: Complex): Complex = Complex(value, 0) + c
-  def *(c: Complex): Complex = Complex(value, 0) * c
-
+//global value used to create complex numbers in main()
 val I: Complex = Complex(0, 1)
 
 object ComplexNumbers:
