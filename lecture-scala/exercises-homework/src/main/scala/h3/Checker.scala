@@ -75,8 +75,9 @@ class MyMonitor extends Monitor[Event] :
     require {
       case Command(c) =>
         require {
+          case Succeed(`c`) => true
           case Fail(`c`) => false
-          case _ => true
+          case Command(`c`) => true
         }
     }
   }
