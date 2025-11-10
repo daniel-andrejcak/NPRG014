@@ -23,35 +23,33 @@ object JsonSerializer:
     def serialize(i: Int) = i.toString
 
   given listSerializer[T](using JsonSerializer[T]): JsonSerializer[List[T]] with
-    def serialize(lst: List[T]) =
-      val elements = lst.map(elem => summon[JsonSerializer[T]].toJson(elem))
+    def serialize(list: List[T]) =
+      val elements = list.map(elem => summon[JsonSerializer[T]].toJson(elem))
       s"[ ${elements.mkString(", ")} ]"
 
-  given mapSerializer[K, V](using kser: JsonSerializer[K], vser: JsonSerializer[V]): JsonSerializer[Map[K, V]] with
+  given mapSerializer[K, V](using key: JsonSerializer[K], value: JsonSerializer[V]): JsonSerializer[Map[K, V]] with
     def serialize(m: Map[K, V]) =
-      val entries = m.map { case (k, v) => 
-        s"${kser.toJson(k)}: ${vser.toJson(v)}" 
-      }
+      val entries = m.map {case (k, v) => s"${key.toJson(k)}: ${value.toJson(v)}"}
       s"{ ${entries.mkString(", ")} }"
 
 // serializers for custom classes
 object PhoneNo:
   given JsonSerializer[PhoneNo] with
-    def serialize(p: PhoneNo) =
+    def serialize(phone: PhoneNo) =
       import JsonSerializer.given
-      s"""{ "prefix": ${p.prefix.toJson}, "number": ${p.number.toJson} }"""
+      s"""{ "prefix": ${phone.prefix.toJson}, "number": ${phone.number.toJson} }"""
 
 object Person:
   given JsonSerializer[Person] with
-    def serialize(p: Person) =
+    def serialize(person: Person) =
       import JsonSerializer.given
-      s"""{ "firstName": ${p.firstName.toJson}, "lastName": ${p.lastName.toJson}, "phone": ${p.phone.toJson} }"""
+      s"""{ "firstName": ${person.firstName.toJson}, "lastName": ${person.lastName.toJson}, "phone": ${person.phone.toJson} }"""
 
 object Address:
   given JsonSerializer[Address] with
-    def serialize(a: Address) =
+    def serialize(address: Address) =
       import JsonSerializer.given
-      s"""{ "person": ${a.person.toJson}, "street": ${a.street.toJson}, "city": ${a.city.toJson} }"""
+      s"""{ "person": ${address.person.toJson}, "street": ${address.street.toJson}, "city": ${address.city.toJson} }"""
 
 
 object JsonSerializerTest:
