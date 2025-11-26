@@ -71,20 +71,45 @@ group.with {
     
     //implement the three operators and utility intermediate channels here
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    final chicagoEURPrices = new DataflowQueue()
+    final avgPricesForOp3 = new DataflowQueue()
+    
+    // convert USD to EUR
+    operator(inputs: [chicagoUSDPrices, usd2eurRates], outputs: [chicagoEURPrices]) { usdPrice, rate ->
+        bindOutput(usdPrice * rate)
+    }
+    
+    // daily average price in EUR and output to both channels
+    operator(inputs: [parisEURPrices, viennaEURPrices, frankfurtEURPrices, chicagoEURPrices], 
+             outputs: [avgPrices, avgPricesForOp3], 
+             stateObject: [lastParisPrice: 0]) { paris, vienna, frankfurt, chicago ->
+        
+        def effectiveParis = paris
+        if (paris == 0) {
+            effectiveParis = stateObject.lastParisPrice // fallback
+        } else {
+            stateObject.lastParisPrice = paris
+        }
+        
+        def avg = (effectiveParis + vienna + frankfurt + chicago) / 4
+        
+        bindAllOutputs(avg)
+    }
+    
+    // five day moving average
+    operator(inputs: [avgPricesForOp3], outputs: [fiveDayAverages], stateObject: [history: []]) { price ->
+        // add current price to history
+        stateObject.history << price
+        
+        // keep only 5 days
+        while (stateObject.history.size() > 5) {
+            stateObject.history.remove(0)
+        }
+        
+        // calculate average of available days
+        def movingAvg = stateObject.history.sum() / stateObject.history.size()
+        bindOutput(movingAvg)
+    }
 
     //================================= do not modify beyond this point    
 

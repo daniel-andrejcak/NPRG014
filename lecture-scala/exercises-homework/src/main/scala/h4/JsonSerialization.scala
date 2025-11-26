@@ -23,8 +23,8 @@ object JsonSerializer:
     def serialize(i: Int) = i.toString
 
   given listSerializer[T](using JsonSerializer[T]): JsonSerializer[List[T]] with
-    def serialize(list: List[T]) =
-      val elements = list.map(elem => summon[JsonSerializer[T]].toJson(elem))
+    def serialize(l: List[T]) =
+      val elements = l.map(elem => summon[JsonSerializer[T]].toJson(elem))
       s"[ ${elements.mkString(", ")} ]"
 
   given mapSerializer[K, V](using key: JsonSerializer[K], value: JsonSerializer[V]): JsonSerializer[Map[K, V]] with
